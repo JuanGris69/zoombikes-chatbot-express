@@ -1,44 +1,45 @@
-// index.js
-
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const { OpenAI } = require('openai');
-
-dotenv.config();
+const express = require("express");
+const cors = require("cors");
+const { OpenAI } = require("openai");
+require("dotenv").config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+app.use(cors());
+app.use(express.json());
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-app.use(cors());
-app.use(express.json());
+// Ruta de prueba para confirmar que el servidor está activo
+app.get("/", (req, res) => {
+  res.send("Servidor activo y funcionando");
+});
 
-app.post('/chat', async (req, res) => {
-  const { message } = req.body;
-
-  const prompt = `
-Eres un experto de ZoomBikes. Recomienda una bicicleta de 18 o 20 pulgadas para niños, en base a su edad, peso y altura. 
-Solo responde con una frase clara como: "Según sus medidas, te recomiendo la talla 20 pulgadas."
-Datos del usuario: ${message}
-`;
-
+// Ruta principal del chatbot
+app.post("/chat", async (req, res) => {
   try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [{ role: 'user', content: prompt }],
+    const { message } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: "El mensaje es obligatorio" });
+    }
+
+    const chatCompletion = await openai.chat.completions.create({
+      messages: [{ role: "user", content: message }],
+      model: "gpt-3.5-turbo",
     });
 
-    res.json({ reply: completion.choices[0].message.content });
+    const response = chatCompletion.choices[0].message.content;
+    res.json({ response });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error al contactar con OpenAI', detalle: error.message });
+    console.error("Error al procesar la solicitud:", error.message);
+    res.status(500).json({ error: "Hubo un error en el servidor" });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Servidor escuchando en el puerto ${port}`);
+// Puerto dinámico para Railway
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
